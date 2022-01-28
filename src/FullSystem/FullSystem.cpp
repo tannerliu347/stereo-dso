@@ -257,6 +257,11 @@ void FullSystem::printResult(std::string file)
 	Eigen::Matrix<double,3,3> last_R = (*(allFrameHistory.begin()))->camToWorld.so3().matrix();
 	Eigen::Matrix<double,3,1> last_T = (*(allFrameHistory.begin()))->camToWorld.translation().transpose();
 
+	// also create a file to store trajectory timestamps to verify missing/initializing frames
+	std::ofstream timefile;
+	timefile.open("frametimes.txt");
+	timefile << std::setfill('0') << std::setw(6);
+
 	for(FrameShell* s : allFrameHistory)
 	{
         if(!s->poseValid)
@@ -285,15 +290,76 @@ void FullSystem::printResult(std::string file)
 			  R(1,0) <<" "<<R(1,1)<<" "<<R(1,2)<<" "<<T(1,0)<<" "<<
 			  R(2,0) <<" "<<R(2,1)<<" "<<R(2,2)<<" "<<T(2,0)<<"\n";
 
-//		myfile << s->timestamp <<
-//			" " << s->camToWorld.translation().transpose()<<
-//			" " << s->camToWorld.so3().unit_quaternion().x()<<
-//			" " << s->camToWorld.so3().unit_quaternion().y()<<
-//			" " << s->camToWorld.so3().unit_quaternion().z()<<
-//			" " << s->camToWorld.so3().unit_quaternion().w() << "\n";
+		timefile << s->incoming_id << std::endl;
+		timefile << std::setfill('0') << std::setw(6);
+
+		// myfile << s->timestamp <<
+		// 	" " << s->camToWorld.translation().transpose()<<
+		// 	" " << s->camToWorld.so3().unit_quaternion().x()<<
+		// 	" " << s->camToWorld.so3().unit_quaternion().y()<<
+		// 	" " << s->camToWorld.so3().unit_quaternion().z()<<
+		// 	" " << s->camToWorld.so3().unit_quaternion().w() << "\n";
 		i++;
 	}
 	myfile.close();
+	timefile.close();
+}
+
+void FullSystem::printResultTartan(std::string file)
+{
+	boost::unique_lock<boost::mutex> lock(trackMutex);
+	boost::unique_lock<boost::mutex> crlock(shellPoseMutex);
+
+	std::ofstream myfile;
+	myfile.open (file.c_str());
+	myfile << std::setprecision(15);
+	int i = 0;
+
+	Eigen::Matrix<double,3,3> last_R = (*(allFrameHistory.begin()))->camToWorld.so3().matrix();
+	Eigen::Matrix<double,3,1> last_T = (*(allFrameHistory.begin()))->camToWorld.translation().transpose();
+
+	// also create a file to store trajectory timestamps to verify missing/initializing frames
+	std::ofstream timefile;
+	timefile.open("frametimes.txt");
+	timefile << std::setfill('0') << std::setw(6);
+
+	for(FrameShell* s : allFrameHistory)
+	{
+        if(!s->poseValid)
+		{
+			myfile<< last_R(0,0) <<" "<<last_R(0,1)<<" "<<last_R(0,2)<<" "<<last_T(0,0)<<" "<<
+				  last_R(1,0) <<" "<<last_R(1,1)<<" "<<last_R(1,2)<<" "<<last_T(1,0)<<" "<<
+				  last_R(2,0) <<" "<<last_R(2,1)<<" "<<last_R(2,2)<<" "<<last_T(2,0)<<"\n";
+			continue;
+		}
+
+		if(setting_onlyLogKFPoses && s->marginalizedAt == s->id)
+		{
+			myfile<< last_R(0,0) <<" "<<last_R(0,1)<<" "<<last_R(0,2)<<" "<<last_T(0,0)<<" "<<
+				  last_R(1,0) <<" "<<last_R(1,1)<<" "<<last_R(1,2)<<" "<<last_T(1,0)<<" "<<
+				  last_R(2,0) <<" "<<last_R(2,1)<<" "<<last_R(2,2)<<" "<<last_T(2,0)<<"\n";
+			continue;
+		}
+
+		const Eigen::Matrix<double,3,3> R = s->camToWorld.so3().matrix();
+		const Eigen::Matrix<double,3,1> T = s->camToWorld.translation().transpose();
+
+		last_R = R;
+		last_T = T;
+
+		timefile << s->incoming_id << std::endl;
+		timefile << std::setfill('0') << std::setw(6);
+
+		myfile <<std::fixed << std::setprecision(18) << std::scientific
+				<< s->camToWorld.translation().transpose()<<
+			" " << s->camToWorld.so3().unit_quaternion().x()<<
+			" " << s->camToWorld.so3().unit_quaternion().y()<<
+			" " << s->camToWorld.so3().unit_quaternion().z()<<
+			" " << s->camToWorld.so3().unit_quaternion().w() << "\n";
+		i++;
+	}
+	myfile.close();
+	timefile.close();
 }
 
 Vec4 FullSystem::trackNewCoarse(FrameHessian* fh, FrameHessian* fh_right)
@@ -1165,7 +1231,8 @@ void FullSystem::addActiveFrame( ImageAndExposure* image, ImageAndExposure* imag
            ow->publishCamPose(fh->shell, &Hcalib);
 
 		lock.unlock();
-		deliverTrackedFrame(fh, fh_right, needToMakeKF);
+		// deliverTrackedFrame(fh, fh_right, needToMakeKF);
+		deliverTrackedFrame(fh, fh_right, true);
 		return;
 	}
 }

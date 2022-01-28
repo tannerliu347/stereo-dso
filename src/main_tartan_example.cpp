@@ -368,8 +368,8 @@ int main( int argc, char** argv )
 	// hook crtl+C.
 	boost::thread exThread = boost::thread(exitThread);
 
-	ImageFolderReader* reader = new ImageFolderReader(source+"/image_0", calib, gammaCalib, vignette);
-	ImageFolderReader* reader_right = new ImageFolderReader(source+"/image_1", calib, gammaCalib, vignette);
+	ImageFolderReader* reader = new ImageFolderReader(source+"/image_left", calib, gammaCalib, vignette);
+	ImageFolderReader* reader_right = new ImageFolderReader(source+"/image_right", calib, gammaCalib, vignette);
 	reader->setGlobalCalibration();
 	reader_right->setGlobalCalibration();
 	
@@ -565,7 +565,7 @@ int main( int argc, char** argv )
         gettimeofday(&tv_end, NULL);
 
 
-        fullSystem->printResult(outputFile);
+        fullSystem->printResultTartan(outputFile);
 
 
         int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());

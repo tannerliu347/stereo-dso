@@ -150,6 +150,8 @@ public:
 
 	void printResult(std::string file);
 
+	void printResultTartan(std::string file);
+
 	void debugPlot(std::string name);
 
 	void printFrameLifetimes();
